@@ -10,7 +10,8 @@ class BasicTarget():
         
     
     def __call__(self,
-                 state: np.ndarray):
+                 state: np.ndarray,
+                 temperature=1):
         
         assert self.state_dim == state.shape[0]
         pass
@@ -54,7 +55,7 @@ class MultiPeaksTarget(BasicTarget):
         )                                       # [D, 2].   
         
         
-    def __call__(self, state):
+    def __call__(self, state, temperature=1):
         
         assert self.state_dim == state.shape[0]
         
@@ -66,4 +67,4 @@ class MultiPeaksTarget(BasicTarget):
             _temp_value = np.exp( -np.linalg.norm(state - pos_v) ** 2 / var_v / 2 ) / var_v
             f_value += _temp_value
             
-        return f_value
+        return f_value ** temperature

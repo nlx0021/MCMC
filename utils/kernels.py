@@ -95,15 +95,16 @@ class M_H_Kernal(BasicKernal):
         
     
     def __call__(self,
-                 state):
+                 state,
+                 temperature=1):
         
         
         proposal_state = self.proposal_kernal(state)
         
         alpha = min([
             1,
-            self.f_u(proposal_state) * self.proposal_kernal.pdf(state=proposal_state, next_state=state) /    \
-            self.f_u(state)          * self.proposal_kernal.pdf(state=state, next_state=proposal_state)
+            self.f_u(proposal_state, temperature) * self.proposal_kernal.pdf(state=proposal_state, next_state=state) /    \
+            self.f_u(state, temperature)          * self.proposal_kernal.pdf(state=state, next_state=proposal_state)
         ])
         
         if np.random.random() < alpha:
