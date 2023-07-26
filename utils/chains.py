@@ -102,7 +102,6 @@ class PT_M_H_Chain(BasicChain):
         comp_init_state = np.expand_dims(init_state, 0).repeat((self.B+1), axis=0)  # [B+1, D]
         self.comp_chain = [comp_init_state]
         self.comp_cur_state = comp_init_state
-        self.temp_idx = 0
         
         
     def _step(self):
@@ -113,30 +112,29 @@ class PT_M_H_Chain(BasicChain):
         
         comp_cur_state = self.comp_cur_state
         comp_next_state = np.zeros_like(comp_cur_state)
+        temperatures = self.temperatures
         
         # parallel M-H transition.
         for idx in range(self.B+1):
             comp_next_state[idx] = self.kernal(
-                comp_cur_state[idx], temperature=self.temperatures[idx]
+                comp_cur_state[idx], temperature=temperatures[idx]
             )
             
         # Switch temperature.
-        temp_idx = self.temp_idx
         f_u = self.f_u
         
-        next_temp_idx = np.clip(
-            temp_idx + np.random.choice([-1, 1], p=[.5, .5]),
-            a_min=0, a_max=self.B
+        next_temp_idx = np.random.choice(
+            range(self.B+1)
         )
         
         alpha = min(
             1,
-            f_u(comp_cur_state[temp_idx], temperature=next_temp_idx) * f_u(comp_cur_state[next_temp_idx], temperature=temp_idx) / \
-            f_u(comp_cur_state[next_temp_idx], temperature=next_temp_idx) / f_u(comp_cur_state[temp_idx], temperature=temp_idx)
+            f_u(comp_cur_state[next_temp_idx], temperature=temperatures[0]) /
+            f_u(comp_cur_state[0], temperature=temperatures[0]) 
         )
         
-        if np.random.random() < alpha:    # Switch.
-            comp_next_state[[temp_idx, next_temp_idx], ...] = comp_next_state[[next_temp_idx, temp_idx], ...]
+        if np.random.random() < alpha:    
+            comp_next_state[0, ...] = comp_next_state[next_temp_idx, ...]
             
             
         self.comp_chain.append(comp_next_state)

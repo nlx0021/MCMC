@@ -9,12 +9,14 @@ from utils.visualizer import *
 def main():
     
     state_dim = 2
-    length = 30000
+    length = 20000
     burn = 1000
     
     # Select target.
     f_u = MultiPeaksTarget(
-        state_dim=state_dim
+        state_dim=state_dim,
+        pos_range=[-5, 5],
+        var_range=[.1, 4]
     )
     
     # Select algorithm.
@@ -29,11 +31,12 @@ def main():
         kernal=kernal
     )
     
-    # chain = PT_M_H_Chain(
-    #     init_state=np.random.uniform(low=-1, high=1, size=(state_dim,)),
-    #     kernal=kernal,
-    #     f_u=f_u
-    # )
+    chain = PT_M_H_Chain(
+        init_state=np.random.uniform(low=-1, high=1, size=(state_dim,)),
+        temperatures=[.9, .8, .6, .3, .1, 0],
+        kernal=kernal,
+        f_u=f_u
+    )
     
     # Run the chain.
     chain.run(length=length)
