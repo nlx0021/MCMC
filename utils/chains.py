@@ -4,6 +4,7 @@ from tqdm import tqdm
 class BasicChain():
     
     def __init__(self,
+                 f_u,
                  init_state: np.ndarray,
                  kernal):
         
@@ -17,6 +18,7 @@ class BasicChain():
         self.state_dim = init_state.shape[0]
         self.cur_state = init_state
         self.kernal = kernal
+        self.f_u = f_u
         
     
     def _step(self):
@@ -67,12 +69,14 @@ class M_H_Chain(BasicChain):
     '''
     
     def __init__(self,
+                 f_u,
                  init_state: np.ndarray,
                  kernal):
         
         super().__init__(
             init_state=init_state,
-            kernal=kernal            
+            kernal=kernal,
+            f_u=f_u         
         )
         
         
@@ -91,12 +95,12 @@ class PT_M_H_Chain(BasicChain):
         
         super().__init__(
             init_state=init_state,
-            kernal=kernal
+            kernal=kernal,
+            f_u=f_u
         )
         
         self.temperatures = [1] + temperatures
         self.B = len(temperatures)
-        self.f_u = f_u
         
         # Complete state.
         comp_init_state = np.expand_dims(init_state, 0).repeat((self.B+1), axis=0)  # [B+1, D]

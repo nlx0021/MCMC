@@ -1,4 +1,5 @@
 import numpy as np
+import yaml
 
 from utils.kernels import *
 from utils.chains import *
@@ -6,41 +7,49 @@ from utils.targets import *
 from utils.visualizer import *
 
 
-def main():
+OBJECT_DICT = {
+    "MultiPeaksTarget": MultiPeaksTarget,
+    "NormalKernal": NormalKernal,
+    "M_H_Kernal": M_H_Kernal,
+    "M_H_Chain": M_H_Chain,
+    "PT_M_H_Chain": PT_M_H_Chain        
+}
+
+
+def get(cfg, type, kwargs={}):
     
-    state_dim = 2
-    length = 20000
-    burn = 1000
+    '''
+    type in ["Target", "ProposalKernal", "Kernal", "Chain"]
+    '''
+
+    cls = cfg[type]["class"]
+    if cfg[type][cls] is None:
+        return OBJECT_DICT[cls](**kwargs)
     
-    # Select target.
-    f_u = MultiPeaksTarget(
-        state_dim=state_dim,
-        pos_range=[-5, 5],
-        var_range=[.1, 4]
-    )
+    return OBJECT_DICT[cls](**cfg[type][cls], **kwargs)
+    
+    
+
+def main(cfg):
+    
+    state_dim = cfg["Base"]["state_dim"]
+    length = cfg["Base"]["length"]
+    burn = cfg["Base"]["burn"]
+    
+    # Select target.    
+    f_u = get(cfg, type="Target")
     
     # Select algorithm.
-    kernal = M_H_Kernal(
-        f_u=f_u,
-        state_dim=state_dim,
-        proposal_kernal=NormalKernal(state_dim=state_dim, sigma=1)
-    )
+    proposal_kernal = get(cfg, type="ProposalKernal")
     
-    chain = M_H_Chain(
-        init_state=np.zeros((state_dim,)),
-        kernal=kernal
-    )
+    kernal = get(cfg, type="Kernal",
+                 kwargs={"f_u": f_u, "proposal_kernal": proposal_kernal})
     
-    chain = PT_M_H_Chain(
-        init_state=np.random.uniform(low=-1, high=1, size=(state_dim,)),
-        temperatures=[.9, .8, .6, .3, .1, 0],
-        kernal=kernal,
-        f_u=f_u
-    )
+    chain = get(cfg, type="Chain",
+                kwargs={"f_u": f_u, "kernal": kernal, "init_state": np.random.uniform(low=-1, high=1, size=(state_dim,))})
     
     # Run the chain.
     chain.run(length=length)
-    print("Reject num: %d" % chain.kernal.reject_n)      # For M-H Algorithm.
 
     # Visualize.
     visualizer = Visualizer(
@@ -58,4 +67,8 @@ def main():
     
 if __name__ == '__main__':
     
-    main()
+    cfg_path = "./configs/M-H.yaml"
+    with open(cfg_path, 'r', encoding="utf-8") as f:
+        cfg = yaml.load(f.read(), Loader=yaml.FullLoader)
+    
+    main(cfg)
