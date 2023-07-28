@@ -23,9 +23,13 @@ Kernal:
     state_dim: *state_dim
 
 ProposalKernal:
-  class: NormalKernal
+  class: LangevinKernal
   NormalKernal:
     sigma: 1
+    state_dim: *state_dim
+  LangevinKernal:
+    delta: 1
+    epsilon: .00001
     state_dim: *state_dim
 
 Chain:

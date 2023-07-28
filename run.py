@@ -10,6 +10,7 @@ from utils.visualizer import *
 OBJECT_DICT = {
     "MultiPeaksTarget": MultiPeaksTarget,
     "NormalKernal": NormalKernal,
+    "LangevinKernal": LangevinKernal,
     "M_H_Kernal": M_H_Kernal,
     "M_H_Chain": M_H_Chain,
     "PT_M_H_Chain": PT_M_H_Chain        
@@ -40,7 +41,8 @@ def main(cfg):
     f_u = get(cfg, type="Target")
     
     # Select algorithm.
-    proposal_kernal = get(cfg, type="ProposalKernal")
+    proposal_kernal = get(cfg, type="ProposalKernal",
+                          kwargs={"f_u": f_u})
     
     kernal = get(cfg, type="Kernal",
                  kwargs={"f_u": f_u, "proposal_kernal": proposal_kernal})
