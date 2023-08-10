@@ -8,11 +8,19 @@ from utils.visualizer import *
 
 
 OBJECT_DICT = {
+    # Target.
     "MultiPeaksTarget": MultiPeaksTarget,
+    
+    # ProposalKernal.
     "NormalKernal": NormalKernal,
     "LangevinKernal": LangevinKernal,
+    
+    # Kernal.
     "M_H_Kernal": M_H_Kernal,
     "MultiTry_M_H_Kernal": MultiTry_M_H_Kernal,
+    "HMC_Kernal": HMC_Kernal,
+    
+    # Chain.
     "M_H_Chain": M_H_Chain,
     "PT_M_H_Chain": PT_M_H_Chain        
 }

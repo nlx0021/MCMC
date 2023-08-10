@@ -237,7 +237,7 @@ class MultiTry_M_H_Kernal(BasicKernal):
         filter_it = lambda x, leave_out: x in leave_out
         product = lambda ls: reduce(lambda x,y: x*y, ls)     # compute accumulate product of ls.
         prob_mass_list = [
-            f_u(s) * product([
+            f_u(s, temperature) * product([
                 proposal_kernal_list[i].pdf(state=s, next_state=proposal_state_list[j])
                 for i, j in enumerate([_ for _ in range(try_n+1) if _ != idx])
             ]) for idx, s in enumerate(proposal_state_list)
@@ -258,3 +258,96 @@ class MultiTry_M_H_Kernal(BasicKernal):
     def pdf(self, state, next_state, temperature):
         
         pass    
+    
+    
+
+class HMC_Kernal(BasicKernal):
+    
+    def __init__(self,
+                 f_u,
+                 state_dim=1,
+                 proposal_kernal=None,
+                 epsilon=1e-3,
+                 L=20):
+        
+        super().__init__(
+            state_dim=state_dim,
+            f_u=f_u
+        )
+        
+        self.epsilon = epsilon
+        self.L = L
+        
+        
+    def __call__(self,
+                 state,
+                 temperature=1):
+        
+        L, epsilon = self.L, self.epsilon
+        f_u = self.f_u
+        
+        # Randomly choose a momentum.
+        r = np.random.multivariate_normal(
+            mean = np.zeros((self.state_dim, )),
+            cov = np.eye(self.state_dim)
+        )
+        
+        # Leapfrog.
+        _state, _r = state.copy(), r.copy()
+        for _ in range(L):
+            _state, _r = self.leapfrog(
+                state=_state, r=_r,
+                epsilon=epsilon, temperature=temperature
+            )
+        proposal_state = _state
+        
+        # Reject-Accept.
+        alpha = min(
+            1,
+            np.exp( -np.log(f_u(state,          temperature)) + np.dot(r,  r ) / 2 )  /     # Energy in (state, r).
+            np.exp( -np.log(f_u(proposal_state, temperature)) + np.dot(_r, _r) / 2 )        # Energy in (_state, _r).
+        )
+        
+        if np.random.random() < alpha:
+            next_state = proposal_state 
+        
+        else:
+            next_state = state   
+            
+        return next_state     
+        
+    
+    def leapfrog(self,
+                 state, r,
+                 epsilon,
+                 temperature=1):
+        
+        _r = r + epsilon / 2 * self.compute_grad(state, temperature)
+        _state = state + epsilon * _r
+        _r = _r + epsilon / 2 * self.compute_grad(_state, temperature)
+        
+        return _state, _r
+    
+    
+    def compute_grad(self,
+                     state,
+                     temperature=1):
+        
+        f_u = self.f_u
+        
+        # Compute gradient.
+        grad = np.zeros_like(state)
+        for dim in range(self.state_dim):
+            
+            _diff = np.zeros_like(state)
+            _diff[dim] = self.epsilon
+
+            grad[dim] = (np.log(f_u(state+_diff, temperature)) - np.log(f_u(state-_diff, temperature))) \
+                        / (2 * self.epsilon)        
+    
+        return grad
+    
+    
+    def pdf(self, state, next_state, temperature):
+        
+        pass

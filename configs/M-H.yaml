@@ -2,7 +2,7 @@ Base:
   state_dim: &state_dim 2  
   length: 20000
   burn: 1000
-  multi_proposal: True
+  multi_proposal: False
 
 Target:
   class: MultiPeaksTarget
@@ -18,12 +18,16 @@ Target:
     peaks_num: 4
 
 Kernal:
-  class: MultiTry_M_H_Kernal
+  class: HMC_Kernal
   M_H_Kernal:
     state_dim: *state_dim
   MultiTry_M_H_Kernal:
     state_dim: *state_dim
     try_n: 4
+  HMC_Kernal:
+    state_dim: *state_dim
+    epsilon: .1
+    L: 5
 
 ProposalKernal:
   class: LangevinKernal
