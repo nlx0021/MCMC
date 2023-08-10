@@ -1,4 +1,6 @@
 import numpy as np
+import copy
+from functools import reduce
 from math import pi
 
 class BasicKernal():
@@ -185,3 +187,74 @@ class M_H_Kernal(BasicKernal):
     def pdf(self, state, next_state, temperature):
         
         pass
+    
+    
+    
+class MultiTry_M_H_Kernal(BasicKernal):
+    
+    def __init__(self,
+                 f_u,
+                 state_dim=1,
+                 proposal_kernal=None,
+                 try_n=5):
+        
+        '''
+        Ensemble MCMC Approach.
+        '''
+        
+        if proposal_kernal is None:
+            proposal_kernal_list = [NormalKernal(state_dim=state_dim) for _ in range(try_n)]
+        
+        elif not isinstance(proposal_kernal, list):
+            proposal_kernal_list = [copy.deepcopy(proposal_kernal) for _ in range(try_n)]
+        
+        else:
+            proposal_kernal_list = proposal_kernal
+            assert len(proposal_kernal) == try_n,  "Num of proposals should be equal to try_n!"
+            
+        super().__init__(
+            state_dim=state_dim,
+            f_u=f_u,
+            proposal_kernal=None
+        )
+        
+        self.try_n = try_n
+        self.proposal_kernal_list = proposal_kernal_list
+        
+        
+    def __call__(self,
+                 state,
+                 temperature=1):
+        
+        try_n = self.try_n
+        f_u = self.f_u
+        proposal_kernal_list = self.proposal_kernal_list
+        
+        proposal_state_list = [
+            proposal_kernal_list[kernal_id](state, temperature) for kernal_id in range(try_n)
+        ] + [state]
+        
+        filter_it = lambda x, leave_out: x in leave_out
+        product = lambda ls: reduce(lambda x,y: x*y, ls)     # compute accumulate product of ls.
+        prob_mass_list = [
+            f_u(s) * product([
+                proposal_kernal_list[i].pdf(state=s, next_state=proposal_state_list[j])
+                for i, j in enumerate([_ for _ in range(try_n+1) if _ != idx])
+            ]) for idx, s in enumerate(proposal_state_list)
+        ]
+        
+        _sum = sum(prob_mass_list)
+        prob_mass_list = [v / _sum for v in prob_mass_list]
+        
+        next_state_idx = np.random.choice(
+            np.arange(try_n+1), p=prob_mass_list
+        )
+        
+        next_state = proposal_state_list[next_state_idx]
+        
+        return next_state
+    
+    
+    def pdf(self, state, next_state, temperature):
+        
+        pass    
