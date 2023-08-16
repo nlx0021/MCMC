@@ -3,6 +3,8 @@ import copy
 from functools import reduce
 from math import pi
 
+from utils.proposal_kernels import *
+
 class BasicKernal():
     
     def __init__(self,
@@ -39,107 +41,7 @@ class BasicKernal():
         '''
     
         pass
-    
-    
-    
-class NormalKernal(BasicKernal):
-    
-    '''
-        P(Y|X) ~ N(X, sigma**2 * I)
-    '''
-    
-    def __init__(self,
-                 state_dim=1,
-                 sigma=1,
-                 f_u=None):
-        
-        super().__init__(
-            delta=sigma**2,
-            state_dim=state_dim
-        )
-        
-    
-    def __call__(self,
-                 state,
-                 temperature=1):
-        
-        next_state = np.random.multivariate_normal(
-            mean = state,
-            cov = self.delta * np.eye(self.state_dim)
-        )
-        
-        pdf_v = self.pdf(state, next_state)
-        
-        return next_state
-        
-    
-    def pdf(self, state, next_state, temperature=1):
-        
-        return np.exp( -np.linalg.norm(state - next_state) ** 2 / self.delta / 2 )  \
-            /  np.sqrt(2*pi*self.delta**self.state_dim)
-            
-            
-            
-class LangevinKernal(BasicKernal):
-    
-    def __init__(self,
-                 f_u,
-                 state_dim=1,
-                 delta=1,
-                 epsilon=1e-5):
-        
-        super().__init__(
-            state_dim=state_dim,
-            f_u=f_u, delta=delta
-        )
-        
-        self.epsilon = epsilon
-        
-    
-    def __call__(self,
-                 state,
-                 temperature=1):
-        
-        f_u = self.f_u
-        
-        # Compute gradient.
-        grad = self.compute_grad(state, temperature)
-    
-        # Y ~ N( X+(delta/2)grad , delta)
-        next_state = np.random.multivariate_normal(
-            mean = state + grad * self.delta / 2,
-            cov = self.delta * np.eye(self.state_dim)
-        )
-        
-        return next_state
-    
-    
-    def pdf(self, state, next_state, temperature=1):
-        
-        grad = self.compute_grad(state, temperature)
-        
-        return np.exp( -np.linalg.norm(state+(self.delta/2)*grad - next_state) ** 2 / self.delta / 2 )  \
-            /  np.sqrt(2*pi*self.delta**self.state_dim)
-    
-    
-    def compute_grad(self,
-                     state,
-                     temperature=1):
-        
-        f_u = self.f_u
-        
-        # Compute gradient.
-        grad = np.zeros_like(state)
-        for dim in range(self.state_dim):
-            
-            _diff = np.zeros_like(state)
-            _diff[dim] = self.epsilon
 
-            grad[dim] = (np.log(f_u(state+_diff, temperature)) - np.log(f_u(state-_diff, temperature))) \
-                        / (2 * self.epsilon)        
-    
-        return grad
-    
     
 
 class M_H_Kernal(BasicKernal):
@@ -147,7 +49,9 @@ class M_H_Kernal(BasicKernal):
     def __init__(self,
                  f_u,
                  state_dim=1,
-                 proposal_kernal=None):
+                 proposal_kernal=None,
+                 is_dual=True,
+                 dual_thres=10000):
         
         if proposal_kernal is None:
             proposal_kernal = NormalKernal(state_dim=state_dim)
@@ -158,20 +62,43 @@ class M_H_Kernal(BasicKernal):
             proposal_kernal=proposal_kernal
         )
         
+        self.is_dual = is_dual
+        self.dual_thres = dual_thres
+        
+        if is_dual and proposal_kernal.can_dual:
+            
+            '''
+            Use Dual Average to set delta.
+            '''
+            
+            self.mu = proposal_kernal.delta
+            self.gamma = .05
+            self.t_0 = 10
+            self.kappa = .75
+            
+            self.H_sum = 0
+            self.t = 0            
+        
+        else:
+            self.is_dual = False
+        
         self.reject_n = 0
+        self.ct = 0
+        self.reject_ratio = 0
         
     
     def __call__(self,
                  state,
                  temperature=1):
         
+        self.ct += 1
         
         proposal_state = self.proposal_kernal(state, temperature)
         
         alpha = min([
             1,
             self.f_u(proposal_state, temperature) * self.proposal_kernal.pdf(state=proposal_state, next_state=state, temperature=temperature) /    \
-            self.f_u(state, temperature)          * self.proposal_kernal.pdf(state=state, next_state=proposal_state, temperature=temperature)
+           (self.f_u(state, temperature)          * self.proposal_kernal.pdf(state=state, next_state=proposal_state, temperature=temperature) + 1e-13)
         ])
         
         if np.random.random() < alpha:
@@ -180,6 +107,21 @@ class M_H_Kernal(BasicKernal):
         else:
             next_state = state
             self.reject_n += 1
+            self.reject_ratio = self.reject_n / self.ct
+            
+        if self.is_dual and self.ct < self.dual_thres:
+            
+            H = .65 - alpha
+            self.H_sum += H
+            self.t += 1
+            
+            # Adapt delta.
+            # FIXME: not use x=log(delta). x=delta instead.
+            _delta = self.mu - np.sqrt(self.t) / self.gamma / (self.t + self.t_0) * self.H_sum
+            _ita = self.t ** -self.kappa
+            self.proposal_kernal.delta = _ita * _delta + (1 - _ita) * self.proposal_kernal.delta
+            
+            
         
         return next_state
     
@@ -268,7 +210,9 @@ class HMC_Kernal(BasicKernal):
                  state_dim=1,
                  proposal_kernal=None,
                  epsilon=1e-3,
-                 L=20):
+                 L=20,
+                 is_dual=True,
+                 dual_thres=10000):
         
         super().__init__(
             state_dim=state_dim,
@@ -277,11 +221,33 @@ class HMC_Kernal(BasicKernal):
         
         self.epsilon = epsilon
         self.L = L
+        self.is_dual = is_dual
+        self.dual_thres = dual_thres
+        
+        if is_dual:
+            
+            '''
+            Use Dual Average to set epsilon.
+            '''
+            
+            self.mu = epsilon
+            self.gamma = .05
+            self.t_0 = 10
+            self.kappa = .75
+            
+            self.H_sum = 0
+            self.t = 0
+        
+        self.reject_n = 0
+        self.reject_ratio = 0
+        self.ct = 0
         
         
     def __call__(self,
                  state,
                  temperature=1):
+        
+        self.ct += 1
         
         L, epsilon = self.L, self.epsilon
         f_u = self.f_u
@@ -304,15 +270,30 @@ class HMC_Kernal(BasicKernal):
         # Reject-Accept.
         alpha = min(
             1,
-            np.exp( -np.log(f_u(state,          temperature)) + np.dot(r,  r ) / 2 )  /     # Energy in (state, r).
-            np.exp( -np.log(f_u(proposal_state, temperature)) + np.dot(_r, _r) / 2 )        # Energy in (_state, _r).
+            np.exp( -np.log(f_u(state,          temperature)) + np.dot(r,  r ) / 2 )  /              # Energy in (state, r).
+           (np.exp( -np.log(f_u(proposal_state, temperature)) + np.dot(_r, _r) / 2 ) + 1e-13)        # Energy in (_state, _r).
         )
         
         if np.random.random() < alpha:
             next_state = proposal_state 
         
         else:
-            next_state = state   
+            next_state = state  
+            self.reject_n += 1
+            
+        if self.is_dual and self.ct < self.dual_thres:
+            
+            H = .65 - alpha
+            self.H_sum += H
+            self.t += 1
+            
+            # Adapt epsilon.
+            # FIXME: not use x=log(epsilon). x=epsilon instead.
+            _epsilon = self.mu - np.sqrt(self.t) / self.gamma / (self.t + self.t_0) * self.H_sum
+            _ita = self.t ** -self.kappa
+            self.epsilon = _ita * _epsilon + (1 - _ita) * self.epsilon
+            
+        self.reject_ratio = self.reject_n / self.ct
             
         return next_state     
         
@@ -342,8 +323,9 @@ class HMC_Kernal(BasicKernal):
             _diff = np.zeros_like(state)
             _diff[dim] = self.epsilon
 
-            grad[dim] = (np.log(f_u(state+_diff, temperature)) - np.log(f_u(state-_diff, temperature))) \
-                        / (2 * self.epsilon)        
+            grad[dim] = (
+                    (np.log(f_u(state+_diff, temperature)) - np.log(f_u(state-_diff, temperature)))
+                   ) / (2 * self.epsilon + 1e-13)        
     
         return grad
     

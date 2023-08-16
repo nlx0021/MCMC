@@ -41,7 +41,12 @@ class Visualizer():
             x_min, y_min = min(x_min, sup_x_min)-1, min(y_min, sup_y_min)-1
             x_max, y_max = max(x_max, sup_x_max)+1, max(y_max, sup_y_max)+1
             
-            grid_x, grid_y = np.mgrid[x_min:x_max:.1, y_min:y_max:.1]
+            grid_step = min(
+                (x_max-x_min) / 500,
+                (y_max-y_min) / 500
+            )
+            
+            grid_x, grid_y = np.mgrid[x_min:x_max:grid_step, y_min:y_max:grid_step]
 
             grid_z = np.array(
                 [f_u(np.array([_x, _y])) for _x, _y in zip(grid_x.reshape(-1,), grid_y.reshape(-1,))]

@@ -20,13 +20,15 @@ class BasicChain():
         self.kernal = kernal
         self.f_u = f_u
         
+        self.ct = 0
+        
     
     def _step(self):
         
         '''
         One transition.
         '''
-        
+        self.ct += 1
         next_state = self.kernal(self.cur_state)
         self.chain.append(next_state)
         self.cur_state = next_state
@@ -107,12 +109,22 @@ class PT_M_H_Chain(BasicChain):
         self.comp_chain = [comp_init_state]
         self.comp_cur_state = comp_init_state
         
+        self.switch_n = 0
+        self.ct = 0
+        self.switch_ratio = 0
+        
+        if 'is_dual' in dir(kernal):
+
+            assert kernal.is_dual is False, "Not implement of dual average for PT chain."
+        
         
     def _step(self):
         
         '''
         Parallel transition.
         '''
+        
+        self.ct += 1 
         
         comp_cur_state = self.comp_cur_state
         comp_next_state = np.zeros_like(comp_cur_state)
@@ -139,10 +151,12 @@ class PT_M_H_Chain(BasicChain):
         
         if np.random.random() < alpha:    
             comp_next_state[0, ...] = comp_next_state[next_temp_idx, ...]
+            self.switch_n += 1
+            self.switch_ratio = self.switch_n / self.ct
             
             
         self.comp_chain.append(comp_next_state)
         self.comp_cur_state = comp_next_state
         
         self.chain.append(comp_next_state[0])
-        self.cur_state = comp_next_state[0]          
+        self.cur_state = comp_next_state[0]         

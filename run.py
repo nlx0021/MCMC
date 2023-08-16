@@ -2,6 +2,7 @@ import numpy as np
 import yaml
 
 from utils.kernels import *
+from utils.proposal_kernels import *
 from utils.chains import *
 from utils.targets import *
 from utils.visualizer import *
@@ -86,7 +87,24 @@ def main(cfg):
     
     # Run the chain.
     chain.run(length=length)
-    # print("Reject num: %d" % kernal.reject_n)     # Only valid for M-H Kernal.
+
+    # Stats.
+    if not isinstance(chain, PT_M_H_Chain):            # Not implemented for PT Chain.
+        kernal_stat_list = ['epsilon', 'reject_ratio', 'delta']
+        for stat in kernal_stat_list:
+            if stat in dir(kernal) and getattr(kernal, stat) is not None:
+                print("Kernal's %s is: %f" % (stat, getattr(kernal, stat)))
+            if (kernal.proposal_kernal is not None)    \
+                and not isinstance(kernal.proposal_kernal, list)   \
+                and stat in dir(kernal.proposal_kernal)    \
+                and getattr(kernal.proposal_kernal, stat) is not None:
+                print("Proposal kernal's %s is %f" % (stat, getattr(kernal.proposal_kernal, stat)))
+                
+    chain_stat_list = ['switch_ratio']
+    for stat in chain_stat_list:
+        if stat in dir(chain):
+            print("%s is: %f" % (stat, getattr(chain, stat)))
+    
 
     # Visualize.
     visualizer = Visualizer(

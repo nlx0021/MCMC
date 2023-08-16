@@ -1,7 +1,7 @@
 Base: 
   state_dim: &state_dim 2  
   length: 20000
-  burn: 1000
+  burn: &burn 2000
   multi_proposal: False
 
 Target:
@@ -9,33 +9,37 @@ Target:
   MultiPeaksTarget:
     seed: 21
     pos_range:
-      - -5
-      - 5
+      - -20
+      - 20
     var_range:
-      - .1
-      - 4
+      - 1
+      - 10
     state_dim: *state_dim 
-    peaks_num: 4
+    peaks_num: 6
 
 Kernal:
-  class: HMC_Kernal
+  class: M_H_Kernal
   M_H_Kernal:
     state_dim: *state_dim
+    is_dual: False
+    dual_thres: *burn    
   MultiTry_M_H_Kernal:
     state_dim: *state_dim
     try_n: 4
   HMC_Kernal:
     state_dim: *state_dim
-    epsilon: .1
+    epsilon: .01
     L: 5
+    is_dual: True
+    dual_thres: *burn
 
 ProposalKernal:
-  class: LangevinKernal
+  class: NormalKernal
   NormalKernal:
-    sigma: 1
+    sigma: 2.3
     state_dim: *state_dim
   LangevinKernal:
-    delta: .1
+    delta: .2
     epsilon: .00001
     state_dim: *state_dim
 
@@ -63,7 +67,7 @@ MultiProposalKernal:
       state_dim: *state_dim      
 
 Chain:
-  class: M_H_Chain
+  class: PT_M_H_Chain
   M_H_Chain:
     
   PT_M_H_Chain:
