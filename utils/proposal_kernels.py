@@ -3,6 +3,8 @@ import copy
 from functools import reduce
 from math import pi
 
+EPSILON = 1e-13
+
 class BasicKernal():
     
     def __init__(self,
@@ -139,7 +141,7 @@ class LangevinKernal(BasicKernal):
             _diff[dim] = 1e-5    # epsilon to compute grad.
 
             grad[dim] = (
-                    (np.log(f_u(state+_diff, temperature)) - np.log(f_u(state-_diff, temperature))) + 1e-13
-                   ) / (2 * 1e-5 + 1e-13)        
+                    (np.log(f_u(state+_diff, temperature) + EPSILON) - np.log(f_u(state-_diff, temperature) + EPSILON))
+                   ) / (2 * 1e-5 + EPSILON)        
     
         return grad

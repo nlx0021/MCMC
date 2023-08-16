@@ -2,6 +2,8 @@ import numpy as np
 import copy
 from tqdm import tqdm
 
+EPSILON = 1e-13
+
 class BasicChain():
     
     def __init__(self,
@@ -124,9 +126,11 @@ class PT_M_H_Chain(BasicChain):
         self.ct = 0
         self.switch_ratio = 0
         
-        if 'is_dual' in dir(kernal):
+        
+        for _kernal in kernal:
+            if 'is_dual' in dir(_kernal):
 
-            assert kernal.is_dual is False, "Not implement of dual average for PT chain."
+                assert _kernal.is_dual is False, "Not implement of dual average for PT chain."
         
         
     def _step(self):
@@ -157,7 +161,7 @@ class PT_M_H_Chain(BasicChain):
         alpha = min(
             1,
             f_u(comp_cur_state[next_temp_idx], temperature=temperatures[0]) /
-           (f_u(comp_cur_state[0], temperature=temperatures[0]) + 1e-13 )
+           (f_u(comp_cur_state[0], temperature=temperatures[0]) + EPSILON )
         )
         
         if np.random.random() < alpha:    

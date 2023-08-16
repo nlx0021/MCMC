@@ -5,6 +5,8 @@ from math import pi
 
 from utils.proposal_kernels import *
 
+EPSILON = 1e-13
+
 class BasicKernal():
     
     def __init__(self,
@@ -102,7 +104,7 @@ class M_H_Kernal(BasicKernal):
         alpha = min([
             1,
             self.f_u(proposal_state, temperature) * self.proposal_kernal.pdf(state=proposal_state, next_state=state, temperature=temperature) /    \
-           (self.f_u(state, temperature)          * self.proposal_kernal.pdf(state=state, next_state=proposal_state, temperature=temperature) + 1e-13)
+           (self.f_u(state, temperature)          * self.proposal_kernal.pdf(state=state, next_state=proposal_state, temperature=temperature) + EPSILON)
         ])
         
         if np.random.random() < alpha:
@@ -274,8 +276,8 @@ class HMC_Kernal(BasicKernal):
         # Reject-Accept.
         alpha = min(
             1,
-            np.exp( -np.log(f_u(state,          temperature)) + np.dot(r,  r ) / 2 )  /              # Energy in (state, r).
-           (np.exp( -np.log(f_u(proposal_state, temperature)) + np.dot(_r, _r) / 2 ) + 1e-13)        # Energy in (_state, _r).
+            np.exp( -np.log(f_u(state,          temperature) + EPSILON) + np.dot(r,  r ) / 2 )  /              # Energy in (state, r).
+           (np.exp( -np.log(f_u(proposal_state, temperature) + EPSILON) + np.dot(_r, _r) / 2 ) + EPSILON)        # Energy in (_state, _r).
         )
         
         if np.random.random() < alpha:
@@ -328,8 +330,8 @@ class HMC_Kernal(BasicKernal):
             _diff[dim] = 1e-5
 
             grad[dim] = (
-                    (np.log(f_u(state+_diff, temperature)) - np.log(f_u(state-_diff, temperature)))
-                   ) / (2 * 1e-5 + 1e-13)        
+                    (np.log(f_u(state+_diff, temperature) + EPSILON) - np.log(f_u(state-_diff, temperature) + EPSILON))
+                   ) / (2 * 1e-5 + EPSILON)        
     
         return grad
     

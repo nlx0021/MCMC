@@ -8,8 +8,8 @@ Target:
   MultiPeaksTarget:
     seed: 21
     pos_range:
-      - -15
-      - 15
+      - -20
+      - 20
     var_range:
       - 1
       - 10
@@ -34,9 +34,9 @@ Kernal:
         Kernal_1:
           class: NormalKernal
           NormalKernal:
-            sigma: .1
+            sigma: 1
             state_dim: *state_dim
-      is_dual: True
+      is_dual: False
       dual_thres: *burn
 
   Kernal_2:
@@ -65,7 +65,7 @@ Kernal:
     class: HMC_Kernal
     HMC_Kernal:
       state_dim: *state_dim
-      epsilon: 2
+      epsilon: 4.23
       L: 5
       is_dual: False
       dual_thres: *burn
