@@ -51,7 +51,8 @@ class NormalKernal(BasicKernal):
     def __init__(self,
                  state_dim=1,
                  sigma=1,
-                 f_u=None):
+                 f_u=None,
+                 proposal_kernal=None):
         
         super().__init__(
             delta=sigma**2,
@@ -88,14 +89,13 @@ class LangevinKernal(BasicKernal):
                  f_u,
                  state_dim=1,
                  delta=1,
-                 epsilon=1e-5):
+                 proposal_kernal=None):
         
         super().__init__(
             state_dim=state_dim,
             f_u=f_u, delta=delta
         )
         
-        self.epsilon = epsilon
         self.can_dual = True
         
     
@@ -136,10 +136,10 @@ class LangevinKernal(BasicKernal):
         for dim in range(self.state_dim):
             
             _diff = np.zeros_like(state)
-            _diff[dim] = self.epsilon
+            _diff[dim] = 1e-5    # epsilon to compute grad.
 
             grad[dim] = (
                     (np.log(f_u(state+_diff, temperature)) - np.log(f_u(state-_diff, temperature))) + 1e-13
-                   ) / (2 * self.epsilon + 1e-13)        
+                   ) / (2 * 1e-5 + 1e-13)        
     
         return grad

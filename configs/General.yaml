@@ -1,0 +1,71 @@
+Base: 
+  state_dim: &state_dim 2  
+  length: 20000
+  burn: &burn 2000
+
+Target:
+  class: MultiPeaksTarget
+  MultiPeaksTarget:
+    seed: 21
+    pos_range:
+      - -15
+      - 15
+    var_range:
+      - 1
+      - 10
+    state_dim: *state_dim 
+    peaks_num: 6
+
+Chain:
+  class: PT_M_H_Chain
+  M_H_Chain:
+    
+  PT_M_H_Chain:
+    temperatures:
+      - .6
+      - .3
+
+Kernal:
+  Kernal_1:
+    class: M_H_Kernal
+    M_H_Kernal:
+      state_dim: *state_dim
+      proposal_kernal: 
+        Kernal_1:
+          class: NormalKernal
+          NormalKernal:
+            sigma: .1
+            state_dim: *state_dim
+      is_dual: True
+      dual_thres: *burn
+
+  Kernal_2:
+    class: MultiTry_M_H_Kernal
+    MultiTry_M_H_Kernal:
+      state_dim: *state_dim
+      try_n: 3
+      proposal_kernal:
+        kernal_1:
+          class: NormalKernal
+          NormalKernal:
+            sigma: 2.3
+            state_dim: *state_dim
+        kernal_2:
+          class: LangevinKernal
+          LangevinKernal:
+            delta: .2
+            state_dim: *state_dim
+        kernal_3:
+          class: NormalKernal
+          NormalKernal:
+            sigma: .5
+            state_dim: *state_dim
+
+  Kernal_3:
+    class: HMC_Kernal
+    HMC_Kernal:
+      state_dim: *state_dim
+      epsilon: 2
+      L: 5
+      is_dual: False
+      dual_thres: *burn

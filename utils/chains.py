@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 from tqdm import tqdm
 
 class BasicChain():
@@ -75,6 +76,10 @@ class M_H_Chain(BasicChain):
                  init_state: np.ndarray,
                  kernal):
         
+        if isinstance(kernal, list):
+            kernal = kernal[0]
+            print("Multiple kernals are provided. Only use the first one in M_H_Chain.")
+        
         super().__init__(
             init_state=init_state,
             kernal=kernal,
@@ -95,14 +100,20 @@ class PT_M_H_Chain(BasicChain):
                  f_u,
                  temperatures=[.9, .8, .6, .3]):
         
+        self.B = len(temperatures)
+        self.temperatures = [1] + temperatures      
+        
+        if not isinstance(kernal, list):
+            kernal = [copy.deepcopy(kernal) for _ in range(self.B+1)]
+            
+        assert len(kernal) == (self.B+1), "Need %d kernals, but %d is provided." % (len(kernal), self.B+1)
+        
         super().__init__(
             init_state=init_state,
             kernal=kernal,
             f_u=f_u
         )
         
-        self.temperatures = [1] + temperatures
-        self.B = len(temperatures)
         
         # Complete state.
         comp_init_state = np.expand_dims(init_state, 0).repeat((self.B+1), axis=0)  # [B+1, D]
@@ -132,7 +143,7 @@ class PT_M_H_Chain(BasicChain):
         
         # parallel M-H transition.
         for idx in range(self.B+1):
-            comp_next_state[idx] = self.kernal(
+            comp_next_state[idx] = self.kernal[idx](
                 comp_cur_state[idx], temperature=temperatures[idx]
             )
             
@@ -146,7 +157,7 @@ class PT_M_H_Chain(BasicChain):
         alpha = min(
             1,
             f_u(comp_cur_state[next_temp_idx], temperature=temperatures[0]) /
-            f_u(comp_cur_state[0], temperature=temperatures[0]) 
+           (f_u(comp_cur_state[0], temperature=temperatures[0]) + 1e-13 )
         )
         
         if np.random.random() < alpha:    

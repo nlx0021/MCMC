@@ -56,6 +56,10 @@ class M_H_Kernal(BasicKernal):
         if proposal_kernal is None:
             proposal_kernal = NormalKernal(state_dim=state_dim)
             
+        if isinstance(proposal_kernal, list):
+            proposal_kernal = proposal_kernal[0]
+            print("Multiple proposal kernals are provided. Only use the first one in M_H_Kernal.")
+            
         super().__init__(
             state_dim=state_dim,
             f_u=f_u,
@@ -186,7 +190,7 @@ class MultiTry_M_H_Kernal(BasicKernal):
         ]
         
         _sum = sum(prob_mass_list)
-        prob_mass_list = [v / _sum for v in prob_mass_list]
+        prob_mass_list = [v / (_sum) for v in prob_mass_list]
         
         next_state_idx = np.random.choice(
             np.arange(try_n+1), p=prob_mass_list
@@ -321,11 +325,11 @@ class HMC_Kernal(BasicKernal):
         for dim in range(self.state_dim):
             
             _diff = np.zeros_like(state)
-            _diff[dim] = self.epsilon
+            _diff[dim] = 1e-5
 
             grad[dim] = (
                     (np.log(f_u(state+_diff, temperature)) - np.log(f_u(state-_diff, temperature)))
-                   ) / (2 * self.epsilon + 1e-13)        
+                   ) / (2 * 1e-5 + 1e-13)        
     
         return grad
     
